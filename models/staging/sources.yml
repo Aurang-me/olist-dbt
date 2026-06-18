@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: dbt_dev
+    tables:
+      - name: orders
+      - name: order_items
+      - name: customers
+      - name: products
+      - name: payments
+      - name: reviews
+      - name: sellers
+      - name: geolocation
