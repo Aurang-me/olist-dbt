@@ -1,0 +1,54 @@
+name: dbt build
+
+on:
+  workflow_dispatch:  # allows manual trigger and webhook trigger
+  schedule:
+    - cron: '0 2 * * *'  # runs daily at 2AM UTC as backup
+
+jobs:
+  dbt-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install dbt-synapse
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          olist:
+            target: dev
+            outputs:
+              dev:
+                type: synapse
+                driver: 'ODBC Driver 18 for SQL Server'
+                server: ${{ secrets.SYNAPSE_SERVER }}
+                port: 1433
+                database: ${{ secrets.SYNAPSE_DATABASE }}
+                schema: dbt_dev
+                authentication: sql
+                user: ${{ secrets.SYNAPSE_USER }}
+                password: '${{ secrets.SYNAPSE_PASSWORD }}'
+                trust_cert: true
+          EOF
+
+      - name: Run dbt build
+        run: dbt build
+
+      - name: Upload dbt logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dbt-logs
+          path: logs/
